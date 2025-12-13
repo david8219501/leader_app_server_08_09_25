@@ -17,6 +17,6 @@
     "expo-linear-gradient": "~13.0.2",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.3",
-    "sqlite3": "..."
+    "pg": "^8.16.3"
   }
 }
