@@ -1,4 +1,7 @@
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -418,6 +421,19 @@ app.delete('/shifts/:weekStart', authenticateToken, async (req, res) => {
 // ===========================
 // הפעלת השרת
 // ===========================
-app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+const startServer = async () => {
+    try {
+        // בדיקה שה-DB מוכן
+        await pool.query('SELECT 1');
+        console.log('✅ Database connection verified');
+        
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`✅ Server running on port ${PORT}`);
+        });
+    } catch (err) {
+        console.error('❌ Failed to start server:', err);
+        setTimeout(startServer, 5000); // נסה שוב אחרי 5 שניות
+    }
+};
+
+startServer();

@@ -78,13 +78,14 @@ const initDatabase = async () => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('❌ Error initializing database:', err.message);
-        throw err;
     } finally {
         client.release();
     }
 };
 
-// הרצת האתחול
-initDatabase().catch(console.error);
+// הרצת האתחול (לא חוסם)
+initDatabase().catch(err => {
+    console.error('Failed to initialize database:', err);
+});
 
 module.exports = pool;
