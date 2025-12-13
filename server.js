@@ -427,12 +427,23 @@ const startServer = async () => {
         await pool.query('SELECT 1');
         console.log('✅ Database connection verified');
         
-        app.listen(PORT, '0.0.0.0', () => {
+        const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`✅ Server running on port ${PORT}`);
+            console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
         });
+
+        // Handle graceful shutdown
+        process.on('SIGTERM', () => {
+            console.log('⚠️ SIGTERM received, closing server gracefully...');
+            server.close(() => {
+                console.log('✅ Server closed');
+                process.exit(0);
+            });
+        });
+
     } catch (err) {
         console.error('❌ Failed to start server:', err);
-        setTimeout(startServer, 5000); // נסה שוב אחרי 5 שניות
+        process.exit(1);
     }
 };
 
