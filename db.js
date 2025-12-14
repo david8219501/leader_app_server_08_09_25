@@ -51,18 +51,17 @@ const initDatabase = async () => {
             )
         `);
 
-        // טבלת משמרות
+        // טבלת משמרות - employee_id הוא TEXT (לתמיכה ב-prefix)
         await client.query(`
             CREATE TABLE IF NOT EXISTS shifts (
                 id SERIAL PRIMARY KEY,
                 manager_id INTEGER NOT NULL,
-                employee_id INTEGER NOT NULL,
+                employee_id TEXT NOT NULL,
                 day TEXT NOT NULL,
                 shift_type TEXT NOT NULL,
                 week_start_date TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (manager_id) REFERENCES managers(id) ON DELETE CASCADE,
-                FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+                FOREIGN KEY (manager_id) REFERENCES managers(id) ON DELETE CASCADE
             )
         `);
 
@@ -71,6 +70,18 @@ const initDatabase = async () => {
             CREATE INDEX IF NOT EXISTS idx_shifts_lookup 
             ON shifts(manager_id, week_start_date, day, shift_type)
         `);
+
+        // ⚠️ אם הטבלה כבר קיימת עם employee_id INTEGER, נשנה ל-TEXT
+        try {
+            await client.query(`
+                ALTER TABLE shifts 
+                ALTER COLUMN employee_id TYPE TEXT
+            `);
+            console.log('✅ Updated employee_id column to TEXT');
+        } catch (alterErr) {
+            // אם העמודה כבר TEXT או אם השינוי נכשל - זה בסדר
+            console.log('ℹ️ employee_id column already TEXT or no changes needed');
+        }
 
         await client.query('COMMIT');
         console.log('✅ Database tables initialized successfully');

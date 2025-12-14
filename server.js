@@ -334,7 +334,7 @@ app.delete('/employees/:id', authenticateToken, async (req, res) => {
 });
 
 // ===========================
-// SHIFTS (משמרות)
+// SHIFTS (משמרות) - עם תמיכה ב-Prefix
 // ===========================
 
 // שמירת משמרת
@@ -347,6 +347,38 @@ app.post('/shifts', authenticateToken, async (req, res) => {
     }
 
     try {
+        // פירוק ה-prefix: "m_1" → ["m", "1"] או "e_5" → ["e", "5"]
+        const parts = employeeId.split('_');
+        
+        if (parts.length !== 2) {
+            return res.status(400).json({ message: 'פורמט ID לא תקין' });
+        }
+
+        const type = parts[0];   // "m" או "e"
+        const id = parseInt(parts[1]);  // המספר
+
+        // בדיקה לפי סוג
+        if (type === 'm') {
+            // זו מנהלת - בדוק שזו המנהלת המחוברת
+            if (id !== managerId) {
+                return res.status(403).json({ message: 'אין הרשאה לשבץ מנהלת אחרת' });
+            }
+            // המנהלת תקינה - נמשיך לשמירה
+        } else if (type === 'e') {
+            // זו עובדת - בדוק שהיא קיימת ושייכת למנהלת
+            const employeeCheck = await pool.query(
+                'SELECT * FROM employees WHERE id = $1 AND manager_id = $2',
+                [id, managerId]
+            );
+            
+            if (employeeCheck.rows.length === 0) {
+                return res.status(400).json({ message: 'עובדת לא נמצאה או אינה שייכת לך' });
+            }
+        } else {
+            return res.status(400).json({ message: 'סוג ID לא מזוהה' });
+        }
+
+        // שמור במסד עם ה-prefix המלא
         const result = await pool.query(
             `INSERT INTO shifts (manager_id, employee_id, day, shift_type, week_start_date)
              VALUES ($1, $2, $3, $4, $5) RETURNING id`,
@@ -423,7 +455,6 @@ app.delete('/shifts/:weekStart', authenticateToken, async (req, res) => {
 // ===========================
 const startServer = async () => {
     try {
-        // בדיקה שה-DB מוכן
         await pool.query('SELECT 1');
         console.log('✅ Database connection verified');
         
@@ -432,7 +463,6 @@ const startServer = async () => {
             console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
         });
 
-        // Handle graceful shutdown
         process.on('SIGTERM', () => {
             console.log('⚠️ SIGTERM received, closing server gracefully...');
             server.close(() => {
