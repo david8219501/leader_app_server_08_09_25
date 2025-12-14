@@ -51,10 +51,11 @@ app.get('/', (req, res) => {
 // MANAGERS (מנהלות)
 // ===========================
 
-// רישום מנהלת חדשה
+// רישום מנהלת חדשה (והוספה כעובדת)
 app.post('/register', async (req, res) => {
     const { firstName, lastName, phone, email, password } = req.body;
 
+    // Validation
     if (!firstName || !lastName || !phone || !email || !password) {
         return res.status(400).json({ message: 'חסרים פרטים' });
     }
@@ -67,20 +68,39 @@ app.post('/register', async (req, res) => {
         return res.status(400).json({ message: 'הסיסמה חייבת להכיל לפחות 6 תווים' });
     }
 
+    const client = await pool.connect();
+    
     try {
-        const result = await pool.query(
+        await client.query('BEGIN');
+        
+        // הוסף מנהלת
+        const managerResult = await client.query(
             `INSERT INTO managers (first_name, last_name, phone, email, password)
              VALUES ($1, $2, $3, $4, $5) RETURNING id`,
             [firstName, lastName, phone, email, password]
         );
         
+        const managerId = managerResult.rows[0].id;
+        
+        // הוסף את המנהלת גם כעובדת (כדי שתוכל להיות במשמרות)
+        await client.query(
+            `INSERT INTO employees (first_name, last_name, phone, manager_id)
+             VALUES ($1, $2, $3, $4)`,
+            [firstName, lastName, phone, managerId]
+        );
+        
+        await client.query('COMMIT');
+        
         res.status(201).json({ 
-            id: result.rows[0].id, 
+            id: managerId, 
             message: 'נרשמת בהצלחה' 
         });
     } catch (err) {
+        await client.query('ROLLBACK');
         console.error(err);
         res.status(500).json({ message: 'מנהלת כבר קיימת או שגיאה במסד' });
+    } finally {
+        client.release();
     }
 });
 
