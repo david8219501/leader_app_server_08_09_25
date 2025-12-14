@@ -71,16 +71,24 @@ const initDatabase = async () => {
             ON shifts(manager_id, week_start_date, day, shift_type)
         `);
 
-        // ⚠️ אם הטבלה כבר קיימת עם employee_id INTEGER, נשנה ל-TEXT
+        // ⚠️ אם הטבלה כבר קיימת עם employee_id INTEGER, נצטרך לשנות
         try {
+            // 1. מחק את ה-Foreign Key constraint
             await client.query(`
                 ALTER TABLE shifts 
-                ALTER COLUMN employee_id TYPE TEXT
+                DROP CONSTRAINT IF EXISTS shifts_employee_id_fkey
             `);
+            
+            // 2. שנה את העמודה ל-TEXT
+            await client.query(`
+                ALTER TABLE shifts 
+                ALTER COLUMN employee_id TYPE TEXT USING employee_id::TEXT
+            `);
+            
             console.log('✅ Updated employee_id column to TEXT');
         } catch (alterErr) {
-            // אם העמודה כבר TEXT או אם השינוי נכשל - זה בסדר
-            console.log('ℹ️ employee_id column already TEXT or no changes needed');
+            // אם העמודה כבר TEXT - זה בסדר
+            console.log('ℹ️ employee_id column already TEXT or migration not needed');
         }
 
         await client.query('COMMIT');
